@@ -1,0 +1,9 @@
+.header {
+  margin-bottom: 1rem;
+  /* background: var(--color-rick); */
+}
+.main {
+  border: 3px solid var(--color-rick);
+  border-radius: 3px;
+  padding: 1rem;
+}

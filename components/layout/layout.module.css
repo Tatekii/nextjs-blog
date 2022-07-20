@@ -1,0 +1,26 @@
+.container {
+  max-width: 36rem;
+  padding: 0 1rem;
+  margin: 0 auto 6rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.navbar{
+  width: 100vw;
+  height: 3rem;
+  line-height: 3rem;
+  padding: 0 1rem;
+  background: var(--color-rick);
+  font-size: x-large;
+  display: flex;
+  justify-content: space-between;
+}
+
+.backToHome {
+  margin: 3rem 0 0;
+}

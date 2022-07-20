@@ -1,69 +1,101 @@
-import fs from 'fs'
-import path from 'path'
-import matter from 'gray-matter'
-import { remark } from 'remark'
-import html from 'remark-html'
+import fs from "fs";
+import path from "path";
+import matter from "gray-matter";
+import { formatISO } from "date-fns";
 
-const postsDirectory = path.join(process.cwd(), 'posts')
+const hljs = require("highlight.js"); // https://highlightjs.org/
+const md = require("markdown-it")({
+	langPrefix: "language-",
+	highlight: function (str, lang) {
+		if (lang && hljs.getLanguage(lang)) {
+			try {
+				return hljs.highlight(str, { language: lang }).value;
+			} catch (__) {}
+		}
 
+		return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + "</code></pre>";
+	},
+});
+
+const postsDirectory = path.join(process.cwd(), "posts");
+
+/** 读取post目录 */
+const getPostFiles = () => fs.readdirSync(postsDirectory);
+
+/** 获得排序后的文章列表 */
 export function getSortedPostsData() {
-  // Get file names under /posts
-  const fileNames = fs.readdirSync(postsDirectory)
-  const allPostsData = fileNames.map(fileName => {
-    // Remove ".md" from file name to get id
-    const id = fileName.replace(/\.md$/, '')
+	const fileNames = getPostFiles();
 
-    // Read markdown file as string
-    const fullPath = path.join(postsDirectory, fileName)
-    const fileContents = fs.readFileSync(fullPath, 'utf8')
+	const allPostsData = fileNames.map((fileName) => {
+		// 从文件名移除".md"
+		const id = fileName.replace(/\.md$/, "");
 
-    // Use gray-matter to parse the post metadata section
-    const matterResult = matter(fileContents)
+		// Read markdown file as string
+		const fullPath = path.join(postsDirectory, fileName);
+		const fileContents = fs.readFileSync(fullPath, "utf8");
+		// file state
+		const fileState = fs.statSync(fullPath);
 
-    // Combine the data with the id
-    return {
-      id,
-      ...(matterResult.data as { date: string; title: string })
-    }
-  })
-  // Sort posts by date
-  return allPostsData.sort((a, b) => {
-    if (a.date < b.date) {
-      return 1
-    } else {
-      return -1
-    }
-  })
+		// 创建时间
+		const createTime = formatISO(fileState.ctime);
+
+		// 取文章的meta
+		const matterResult = matter(fileContents);
+
+		// Combine the data with the id
+		return {
+			id,
+			createTime,
+			...(matterResult.data as { title: string }),
+		};
+	});
+	// Sort posts by date
+	return allPostsData.sort((a, b) => {
+		if (a.createTime < b.createTime) {
+			return 1;
+		} else {
+			return -1;
+		}
+	});
 }
 
+/** 将post文件名作为id属性 */
 export function getAllPostIds() {
-  const fileNames = fs.readdirSync(postsDirectory)
-  return fileNames.map(fileName => {
-    return {
-      params: {
-        id: fileName.replace(/\.md$/, '')
-      }
-    }
-  })
+	const fileNames = getPostFiles();
+	return fileNames.map((fileName) => {
+		return {
+			params: {
+				id: fileName.replace(/\.md$/, ""),
+			},
+		};
+	});
 }
 
+/** 解析一篇md */
 export async function getPostData(id: string) {
-  const fullPath = path.join(postsDirectory, `${id}.md`)
-  const fileContents = fs.readFileSync(fullPath, 'utf8')
+	const fullPath = path.join(postsDirectory, `${id}.md`);
+	const fileContents = fs.readFileSync(fullPath, "utf8");
 
-  // Use gray-matter to parse the post metadata section
-  const matterResult = matter(fileContents)
+	const matterResult = matter(fileContents);
 
-  // Use remark to convert markdown into HTML string
-  const processedContent = await remark()
-    .use(html)
-    .process(matterResult.content)
-  const contentHtml = processedContent.toString()
+	// file state
+	const fileState = fs.statSync(fullPath);
 
-  // Combine the data with the id and contentHtml
-  return {
-    id,
-    contentHtml,
-    ...(matterResult.data as { date: string; title: string })
-  }
+	// 创建时间
+	const createTime = formatISO(fileState.ctime);
+	// 修改时间
+	const modifyTime = formatISO(fileState.mtime);
+
+	// 解析markdown字符串
+	const processedContent = await md.render(matterResult.content);
+
+	const contentHtml = processedContent.toString();
+
+	return {
+		id,
+		contentHtml,
+		createTime,
+		modifyTime,
+		...(matterResult.data as { title: string; tags: string[] }),
+	};
 }
